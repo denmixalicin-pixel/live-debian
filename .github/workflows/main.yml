@@ -1,0 +1,68 @@
+name: Build Debian ISO
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            live-build \
+            debootstrap \
+            xorriso \
+            squashfs-tools \
+            dosfstools \
+            grub-pc-bin \
+            grub-efi-amd64-bin
+
+      - name: Configure live-build
+        run: |
+          sudo lb config \
+            --distribution bookworm \
+            --architectures amd64 \
+            --binary-images iso-hybrid \
+            --archive-areas "main contrib non-free-firmware" \
+            --debian-installer live
+
+      - name: Add packages
+        run: |
+          sudo mkdir -p config/package-lists
+
+          cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
+          curl
+          git
+          vim
+          htop
+          openssh-client
+          EOF
+
+      - name: Build ISO
+        run: |
+          sudo lb build
+
+      - name: Find generated ISO
+        run: |
+          ls -lh
+          find . -maxdepth 2 -type f \
+            \( -name "*.iso" -o -name "*.img" \) \
+            -print
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-live-iso
+          path: |
+            *.iso
+            *.img
+          if-no-files-found: error
