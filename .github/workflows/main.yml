@@ -28,7 +28,8 @@ jobs:
             squashfs-tools \
             dosfstools \
             grub-pc-bin \
-            grub-efi-amd64-bin
+            grub-efi-amd64-bin \
+            debian-archive-keyring
 
       - name: Configure live-build
         run: |
