@@ -33,6 +33,7 @@ jobs:
 
       - name: Configure live-build
         run: |
+          sudo rm -rf .build cache
           sudo lb config \
             --distribution bookworm \
             --architectures amd64 \
@@ -63,7 +64,7 @@ jobs:
 
       - name: Build ISO
         run: |
-          sudo lb clean --purge
+          sudo rm -rf .build/bootstrap cache/bootstrap
           sudo lb build
 
       - name: Find generated ISO
