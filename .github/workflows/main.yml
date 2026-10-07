@@ -37,7 +37,12 @@ jobs:
             --architectures amd64 \
             --binary-images iso-hybrid \
             --archive-areas "main contrib non-free-firmware" \
+            --parent-mirror-bootstrap "http://deb.debian.org/debian/" \
+            --parent-mirror-binary "http://deb.debian.org/debian/" \
+            --mirror-bootstrap "http://deb.debian.org/debian/" \
+            --mirror-binary "http://deb.debian.org/debian/" \
             --debian-installer live
+
 
       - name: Add packages
         run: |
