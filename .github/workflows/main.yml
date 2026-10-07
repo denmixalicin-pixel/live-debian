@@ -63,6 +63,7 @@ jobs:
 
       - name: Build ISO
         run: |
+          sudo lb clean --purge
           sudo lb build
 
       - name: Find generated ISO
