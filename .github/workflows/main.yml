@@ -37,6 +37,12 @@ jobs:
             --architectures amd64 \
             --binary-images iso-hybrid \
             --archive-areas "main contrib non-free-firmware" \
+            --mirror-bootstrap "http://debian.org" \
+            --mirror-chroot "http://debian.org" \
+            --mirror-binary "http://debian.org" \
+            --parent-mirror-bootstrap "http://debian.org" \
+            --parent-mirror-chroot "http://debian.org" \
+            --parent-mirror-binary "http://debian.org" \
             --parent-mirror-binary-security "http://debian.org" \
             --mirror-binary-security "http://debian.org" \
             --debian-installer live
