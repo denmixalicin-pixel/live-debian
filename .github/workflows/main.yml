@@ -32,12 +32,13 @@ jobs:
 
       - name: Build ISO in clean directory
         run: |
-          # 1. Тотально уничтожаем глобальный системный кэш Ubuntu хоста
+          # 1. Зачищаем остатки
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           
-          # 2. Конфигурируем с явным отключением кэширования (--cache false) и рабочими ftp-зеркалами
+          # 2. Конфигурируем в режиме debian (--mode debian) с полными путями к зеркалам
           sudo lb config \
+            --mode debian \
             --distribution bookworm \
             --architectures amd64 \
             --binary-images iso-hybrid \
@@ -54,7 +55,7 @@ jobs:
             --mirror-binary-security "http://debian.org" \
             --debian-installer live
 
-          # 3. Создаем список пакетов
+          # 3. Добавляем кастомные пакеты
           sudo mkdir -p config/package-lists
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
           curl
@@ -64,7 +65,7 @@ jobs:
           openssh-client
           EOF
 
-          # 4. Запускаем сборку в абсолютно чистом режиме
+          # 4. Запускаем чистую сборку
           sudo lb build
 
       - name: Fix permissions
@@ -87,4 +88,3 @@ jobs:
             *.iso
             *.img
           if-no-files-found: error
-
