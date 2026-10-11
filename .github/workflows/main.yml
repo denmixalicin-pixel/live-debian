@@ -29,10 +29,11 @@ jobs:
             grub-pc-bin \
             grub-efi-amd64-bin \
             debian-archive-keyring
-          
-          # Скачиваем и добавляем актуальный ключ подписи Debian Bookworm, которого нет в старой Ubuntu 22.04
-          sudo gpg --keyserver ://ubuntu.com --recv-keys F8D2585B8783D481
-          sudo gpg --export F8D2585B8783D481 | sudo tee /usr/share/keyrings/debian-archive-keyring.gpg > /dev/null
+
+          # Вариант А: Скачиваем ключ напрямую через curl с официального сайта Debian
+          sudo mkdir -p /usr/share/keyrings
+          sudo curl -sL https://debian.org | sudo gpg --dearmor -o /usr/share/keyrings/debian-archive-keyring.gpg
+
 
       - name: Build ISO in clean directory
         run: |
