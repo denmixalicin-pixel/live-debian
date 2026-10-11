@@ -36,6 +36,16 @@ jobs:
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           
+          # Настоящий патч кода live-build хоста против бага с Contents-amd64.gz
+          # Мы отключаем вызов wget и принудительно создаем пустой файл, чтобы скрипт прошел дальше
+          if [ -f /usr/lib/live/build/chroot_linux-image ]; then
+            sudo sed -i 's/wget /#wget /g' /usr/lib/live/build/chroot_linux-image
+            sudo sed -i '/chroot\/root\/Contents/d' /usr/lib/live/build/chroot_linux-image
+          fi
+          if [ -f /usr/share/live/build/binary/linux-image ]; then
+            sudo sed -i 's/wget /#wget /g' /usr/share/live/build/binary/linux-image
+          fi
+          
           # 2. Настраиваем сборку ОС
           sudo lb config \
             --mode debian \
@@ -63,15 +73,6 @@ jobs:
           # Хак 1: Обход проверки старых GPG ключей хоста Ubuntu
           echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
           sudo chmod +x /usr/local/sbin/debootstrap
-
-          # Хак 2: Создаем структуру папок локального зеркала прямо внутри рабочей директории
-          # и подсовываем туда минимально валидный (не пустой) gzip-файл
-          sudo mkdir -p cache/packages.binary/dists/bookworm/
-          echo "bin/bash base/bash" | gzip | sudo tee cache/packages.binary/dists/bookworm/Contents-amd64.gz > /dev/null
-          
-          # Дублируем в системный каталог кэша live-build, откуда скрипт ядра пытается его читать
-          sudo mkdir -p cache/bootstrap/dists/bookworm/
-          echo "bin/bash base/bash" | gzip | sudo tee cache/bootstrap/dists/bookworm/Contents-amd64.gz > /dev/null
 
           # 4. Запуск сборки
           sudo lb build
