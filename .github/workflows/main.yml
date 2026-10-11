@@ -31,9 +31,11 @@ jobs:
             grub-efi-amd64-bin \
             debian-archive-keyring
 
-      - name: Configure live-build
+            - name: Configure live-build
         run: |
-          sudo rm -rf .build cache
+          # Уничтожаем вообще любые скрытые папки конфигураций и кэша, прилетевшие из Git
+          sudo rm -rf .build/ .build* cache/ config/
+          
           sudo lb config \
             --distribution bookworm \
             --architectures amd64 \
@@ -49,7 +51,6 @@ jobs:
             --mirror-binary-security "http://debian.org" \
             --debian-installer live
 
-
       - name: Add packages
         run: |
           sudo mkdir -p config/package-lists
@@ -64,8 +65,8 @@ jobs:
 
       - name: Build ISO
         run: |
-          sudo rm -rf .build/bootstrap cache/bootstrap
           sudo lb build
+
 
       - name: Find generated ISO
         run: |
