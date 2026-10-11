@@ -20,47 +20,32 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
+          # Устанавливаем базовые утилиты хоста
           sudo apt-get install -y \
-            live-build \
-            debootstrap \
-            xorriso \
-            squashfs-tools \
-            dosfstools \
-            grub-pc-bin \
-            grub-efi-amd64-bin \
-            debian-archive-keyring
+            debootstrap xorriso squashfs-tools dosfstools \
+            grub-pc-bin grub-efi-amd64-bin debian-archive-keyring
 
-      - name: Build ISO in clean directory
+          # ПРАВИЛЬНОЕ РЕШЕНИЕ: Скачиваем и ставим официальный актуальный live-build из репозитория Debian.
+          # Он полностью совместим с Debian 12 Bookworm и не содержит багов старой версии Ubuntu 22.04.
+          curl -LO http://debian.org
+          sudo apt-get install -y ./live-build_20230502_all.deb
+          rm live-build_20230502_all.deb
+
+      - name: Build ISO Image
         run: |
-          # 1. Полная зачистка старых системных кэшей Ubuntu
-          sudo rm -rf /var/cache/live-build
+          # Полная зачистка перед стартом
           sudo rm -rf .build cache config
           
-          # Настоящий патч исходного кода live-build на хосте хоста против бага с Contents-amd64.gz.
-          # Мы находим скрипт, инициирующий скачивание ядра, и добавляем оператор "|| true",
-          # чтобы при ошибке 404 сборка не обрывалась, а шла дальше.
-          if [ -f /usr/share/live/build/binary/linux-image ]; then
-            sudo sed -i 's/wget "${MIRROR}"\/dists\/"${VERSION}"\/Contents-"${ARCHITECTURE}".gz/wget "${MIRROR}"\/dists\/"${VERSION}"\/Contents-"${ARCHITECTURE}".gz || true/g' /usr/share/live/build/binary/linux-image
-          fi
-          if [ -f /usr/lib/live/build/binary_linux-image ]; then
-            sudo sed -i 's/wget "${MIRROR}"\/dists\/"${VERSION}"\/Contents-"${ARCHITECTURE}".gz/wget "${MIRROR}"\/dists\/"${VERSION}"\/Contents-"${ARCHITECTURE}".gz || true/g' /usr/lib/live/build/binary_linux-image
-          fi
-
-          # 2. Настраиваем сборку ОС
+          # Чистая конфигурация live-build актуальной версии
           sudo lb config \
             --mode debian \
             --distribution bookworm \
             --architectures amd64 \
             --binary-images iso-hybrid \
             --archive-areas "main contrib non-free-firmware" \
-            --cache false \
-            --cache-stages false \
-            --security false \
-            --linux-flavours amd64 \
-            --bootloader grub-pc \
             --debian-installer live
           
-          # 3. Создаем список пакетов ОС
+          # Создаем список пакетов ОС
           sudo mkdir -p config/package-lists
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
           curl
@@ -70,13 +55,8 @@ jobs:
           openssh-client
           EOF
           
-          # Хак 1: Обход проверки старых GPG ключей хоста Ubuntu
-          echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
-          sudo chmod +x /usr/local/sbin/debootstrap
-
-          # 4. Запуск сборки
+          # Чистый запуск сборки фреймворком
           sudo lb build
-
 
       - name: Fix permissions
         if: always()
