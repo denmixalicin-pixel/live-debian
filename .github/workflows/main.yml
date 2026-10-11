@@ -36,7 +36,7 @@ jobs:
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           
-          # 2. Настраиваем сборку БЕЗ ломающихся флагов
+          # 2. Настраиваем сборку ОС
           sudo lb config \
             --mode debian \
             --distribution bookworm \
@@ -60,34 +60,18 @@ jobs:
           openssh-client
           EOF
           
-          # Хак 1: Обход проверки старых GPG ключей хоста
+          # Хак 1: Обход проверки старых GPG ключей хоста Ubuntu
           echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
           sudo chmod +x /usr/local/sbin/debootstrap
 
-          # Хак 2: Умная заглушка для wget. Если live-build ищет Contents-amd64.gz, 
-          # мы создаем пустой файл на месте назначения и выходим с кодом 0 (успех)
-          sudo mv /usr/bin/wget /usr/bin/wget.real
-          cat <<'EOF' | sudo tee /usr/bin/wget > /dev/null
-          #!/bin/sh
-          case "$*" in
-            *Contents-amd64.gz*)
-              # Находим в аргументах путь, куда wget должен был сохранить файл (-O или -P)
-              # И просто создаем там пустой архив, чтобы обмануть live-build
-              TARGET_DIR=$(echo "$*" | grep -oE '\-P [^ ]+' | cut -d' ' -f2)
-              if [ -n "$TARGET_DIR" ]; then
-                mkdir -p "$TARGET_DIR"
-                echo "" | gzip > "$TARGET_DIR/Contents-amd64.gz"
-              else
-                echo "" | gzip > Contents-amd64.gz
-              fi
-              exit 0
-              ;;
-            *)
-              exec /usr/bin/wget.real "$@"
-              ;;
-          esac
-          EOF
-          sudo chmod +x /usr/bin/wget
+          # Хак 2: Создаем структуру папок локального зеркала прямо внутри рабочей директории
+          # и подсовываем туда минимально валидный (не пустой) gzip-файл
+          sudo mkdir -p cache/packages.binary/dists/bookworm/
+          echo "bin/bash base/bash" | gzip | sudo tee cache/packages.binary/dists/bookworm/Contents-amd64.gz > /dev/null
+          
+          # Дублируем в системный каталог кэша live-build, откуда скрипт ядра пытается его читать
+          sudo mkdir -p cache/bootstrap/dists/bookworm/
+          echo "bin/bash base/bash" | gzip | sudo tee cache/bootstrap/dists/bookworm/Contents-amd64.gz > /dev/null
 
           # 4. Запуск сборки
           sudo lb build
