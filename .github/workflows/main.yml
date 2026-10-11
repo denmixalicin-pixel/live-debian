@@ -61,9 +61,46 @@ jobs:
           openssh-client
           EOF
 
-      - name: Build ISO
+            - name: Build ISO in clean directory
         run: |
+          # 1. Создаем абсолютно чистую папку вне воркспейса Git
+          sudo mkdir -p /tmp/build
+          cd /tmp/build
+
+          # 2. Конфигурируем live-build с нуля с правильными зеркалами
+          sudo lb config \
+            --distribution bookworm \
+            --architectures amd64 \
+            --binary-images iso-hybrid \
+            --archive-areas "main contrib non-free-firmware" \
+            --mirror-bootstrap "http://debian.org" \
+            --mirror-chroot "http://debian.org" \
+            --mirror-binary "http://debian.org" \
+            --parent-mirror-bootstrap "http://debian.org" \
+            --parent-mirror-chroot "http://debian.org" \
+            --parent-mirror-binary "http://debian.org" \
+            --parent-mirror-binary-security "http://debian.org" \
+            --mirror-binary-security "http://debian.org" \
+            --debian-installer live
+
+          # 3. Декларируем пакеты в новой чистой папке
+          sudo mkdir -p config/package-lists
+          cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
+          curl
+          git
+          vim
+          htop
+          openssh-client
+          EOF
+
+          # 4. Запускаем сборку
           sudo lb build
+
+          # 5. Копируем готовый результат обратно в воркспейс GitHub Actions, чтобы его можно было скачать
+          cd $GITHUB_WORKSPACE
+          sudo cp /tmp/build/*.iso . 2>/dev/null || true
+          sudo cp /tmp/build/*.img . 2>/dev/null || true
+
 
       - name: Fix permissions
         if: always()
