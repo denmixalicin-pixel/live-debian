@@ -36,6 +36,16 @@ jobs:
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           
+          # Настоящий патч исходного кода live-build на хосте хоста против бага с Contents-amd64.gz.
+          # Мы находим скрипт, инициирующий скачивание ядра, и добавляем оператор "|| true",
+          # чтобы при ошибке 404 сборка не обрывалась, а шла дальше.
+          if [ -f /usr/share/live/build/binary/linux-image ]; then
+            sudo sed -i 's/wget "${MIRROR}"\/dists\/"${VERSION}"\/Contents-"${ARCHITECTURE}".gz/wget "${MIRROR}"\/dists\/"${VERSION}"\/Contents-"${ARCHITECTURE}".gz || true/g' /usr/share/live/build/binary/linux-image
+          fi
+          if [ -f /usr/lib/live/build/binary_linux-image ]; then
+            sudo sed -i 's/wget "${MIRROR}"\/dists\/"${VERSION}"\/Contents-"${ARCHITECTURE}".gz/wget "${MIRROR}"\/dists\/"${VERSION}"\/Contents-"${ARCHITECTURE}".gz || true/g' /usr/lib/live/build/binary_linux-image
+          fi
+
           # 2. Настраиваем сборку ОС
           sudo lb config \
             --mode debian \
@@ -60,41 +70,11 @@ jobs:
           openssh-client
           EOF
           
-          # 4. Создаем официальный хук кастомизации. 
-          # Он автоматически выполнится внутри chroot прямо перед установкой ядра.
-          sudo mkdir -p config/hooks/normal
-          cat <<'EOF' | sudo tee config/hooks/normal/0990-patch-wget.chroot
-          #!/bin/sh
-          # Этот скрипт выполняется изнутри chroot от имени root.
-          # Создаем обертку wget в /usr/local/bin, которая имеет приоритет.
-          mkdir -p /usr/local/bin
-          cat <<'WGETEOF' > /usr/local/bin/wget
-          #!/bin/sh
-          case "$*" in
-            *Contents-amd64.gz*)
-              TARGET_DIR=$(echo "$*" | grep -oE '\-P [^ ]+' | cut -d' ' -f2)
-              if [ -n "$TARGET_DIR" ]; then
-                mkdir -p "$TARGET_DIR"
-                echo "bin/bash base/bash" | gzip > "$TARGET_DIR/Contents-amd64.gz"
-              else
-                echo "bin/bash base/bash" | gzip > Contents-amd64.gz
-              fi
-              exit 0
-              ;;
-            *)
-              exec /usr/bin/wget "$@"
-              ;;
-          esac
-          WGETEOF
-          chmod +x /usr/local/bin/wget
-          EOF
-          sudo chmod +x config/hooks/normal/0990-patch-wget.chroot
-
           # Хак 1: Обход проверки старых GPG ключей хоста Ubuntu
           echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
           sudo chmod +x /usr/local/sbin/debootstrap
 
-          # 5. Запуск сборки
+          # 4. Запуск сборки
           sudo lb build
 
 
