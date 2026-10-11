@@ -30,38 +30,7 @@ jobs:
             grub-efi-amd64-bin \
             debian-archive-keyring
 
-      - name: Configure live-build
-        run: |
-          # Жестко вырезаем прилетевший из Git старый кэш и конфиги
-          sudo rm -rf .build .build* cache config
-          
-          sudo lb config \
-            --distribution bookworm \
-            --architectures amd64 \
-            --binary-images iso-hybrid \
-            --archive-areas "main contrib non-free-firmware" \
-            --mirror-bootstrap "http://debian.org" \
-            --mirror-chroot "http://debian.org" \
-            --mirror-binary "http://debian.org" \
-            --parent-mirror-bootstrap "http://debian.org" \
-            --parent-mirror-chroot "http://debian.org" \
-            --parent-mirror-binary "http://debian.org" \
-            --parent-mirror-binary-security "http://debian.org" \
-            --mirror-binary-security "http://debian.org" \
-            --debian-installer live
-
-      - name: Add packages
-        run: |
-          sudo mkdir -p config/package-lists
-          cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
-          curl
-          git
-          vim
-          htop
-          openssh-client
-          EOF
-
-            - name: Build ISO in clean directory
+      - name: Build ISO in clean directory
         run: |
           # 1. Создаем абсолютно чистую папку вне воркспейса Git
           sudo mkdir -p /tmp/build
@@ -96,11 +65,10 @@ jobs:
           # 4. Запускаем сборку
           sudo lb build
 
-          # 5. Копируем готовый результат обратно в воркспейс GitHub Actions, чтобы его можно было скачать
+          # 5. Копируем готовый результат обратно в воркспейс GitHub Actions
           cd $GITHUB_WORKSPACE
           sudo cp /tmp/build/*.iso . 2>/dev/null || true
           sudo cp /tmp/build/*.img . 2>/dev/null || true
-
 
       - name: Fix permissions
         if: always()
