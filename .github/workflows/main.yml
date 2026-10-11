@@ -36,7 +36,7 @@ jobs:
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           
-          # 2. Настраиваем базовую конфигурацию live-build
+          # 2. Настраиваем базовую конфигурацию (LB CONFIG)
           sudo lb config \
             --mode debian \
             --distribution bookworm \
@@ -50,7 +50,7 @@ jobs:
             --bootloader grub-pc \
             --debian-installer live
           
-          # 3. Создаем список пакетов ОС
+          # 3. ТОЛЬКО ТЕПЕРЬ создаем список пакетов ОС (в уже готовую структуру)
           sudo mkdir -p config/package-lists
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
           curl
@@ -64,15 +64,12 @@ jobs:
           echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
           sudo chmod +x /usr/local/sbin/debootstrap
 
-          # Хак 2: Внедрение обертки wget через официальный механизмIncludes.
-          # Файл ложится в config/includes.chroot/usr/local/bin/wget.
-          # live-build сам скопирует его внутрь chroot, и он перехватит падающий вызов wget ядра.
+          # Хак 2: Внедрение обертки wget через официальный механизм Includes (после генерации папок)
           sudo mkdir -p config/includes.chroot/usr/local/bin
           cat <<'EOF' | sudo tee config/includes.chroot/usr/local/bin/wget > /dev/null
           #!/bin/sh
           case "$*" in
             *Contents-amd64.gz*)
-              # Симулируем успешное скачивание: создаем валидный пустой gzip-архив на месте
               TARGET_DIR=$(echo "$*" | grep -oE '\-P [^ ]+' | cut -d' ' -f2)
               if [ -n "$TARGET_DIR" ]; then
                 mkdir -p "$TARGET_DIR"
@@ -83,14 +80,13 @@ jobs:
               exit 0
               ;;
             *)
-              # Все остальные запросы отправляем на реальный wget внутри chroot
               exec /usr/bin/wget "$@"
               ;;
           esac
           EOF
           sudo chmod +x config/includes.chroot/usr/local/bin/wget
 
-          # 4. Запуск сборки
+          # 4. Запуск сборки (LB BUILD)
           sudo lb build
 
       - name: Fix permissions
