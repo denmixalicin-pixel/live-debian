@@ -2,10 +2,10 @@ name: Build Debian ISO
 
 on:
   push:
-    branches: [master]
+    branches: [test-clean]
     tags: ['*']
   pull_request:
-    branches: [master]
+    branches: [test-clean]
 
 jobs:
   build:
