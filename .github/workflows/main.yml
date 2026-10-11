@@ -30,7 +30,7 @@ jobs:
             grub-efi-amd64-bin \
             debian-archive-keyring
 
-            - name: Build ISO in clean directory
+      - name: Build ISO in clean directory
         run: |
           # 1. Полная зачистка старых системных кэшей Ubuntu
           sudo rm -rf /var/cache/live-build
