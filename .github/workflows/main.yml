@@ -32,11 +32,11 @@ jobs:
 
       - name: Build ISO in clean directory
         run: |
-          # 1. Зачищаем остатки
+          # Уничтожаем глобальный кэш Ubuntu, который ломал логику
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           
-          # 2. Конфигурируем в режиме debian (--mode debian) с полными путями к зеркалам
+          # Настраиваем строго режим Debian без ручных (и ломающихся) зеркал
           sudo lb config \
             --mode debian \
             --distribution bookworm \
@@ -45,17 +45,9 @@ jobs:
             --archive-areas "main contrib non-free-firmware" \
             --cache false \
             --cache-stages false \
-            --mirror-bootstrap "http://debian.org" \
-            --mirror-chroot "http://debian.org" \
-            --mirror-binary "http://debian.org" \
-            --parent-mirror-bootstrap "http://debian.org" \
-            --parent-mirror-chroot "http://debian.org" \
-            --parent-mirror-binary "http://debian.org" \
-            --parent-mirror-binary-security "http://debian.org" \
-            --mirror-binary-security "http://debian.org" \
             --debian-installer live
 
-          # 3. Добавляем кастомные пакеты
+          # Создаем список пакетов
           sudo mkdir -p config/package-lists
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
           curl
@@ -65,7 +57,7 @@ jobs:
           openssh-client
           EOF
 
-          # 4. Запускаем чистую сборку
+          # Запуск сборки
           sudo lb build
 
       - name: Fix permissions
