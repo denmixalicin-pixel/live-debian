@@ -32,16 +32,18 @@ jobs:
 
       - name: Build ISO in clean directory
         run: |
-          # 1. Создаем абсолютно чистую папку вне воркспейса Git
-          sudo mkdir -p /tmp/build
-          cd /tmp/build
-
-          # 2. Конфигурируем live-build с нуля с правильными зеркалами
+          # 1. Тотально уничтожаем глобальный системный кэш Ubuntu хоста
+          sudo rm -rf /var/cache/live-build
+          sudo rm -rf .build cache config
+          
+          # 2. Конфигурируем с явным отключением кэширования (--cache false) и рабочими ftp-зеркалами
           sudo lb config \
             --distribution bookworm \
             --architectures amd64 \
             --binary-images iso-hybrid \
             --archive-areas "main contrib non-free-firmware" \
+            --cache false \
+            --cache-stages false \
             --mirror-bootstrap "http://debian.org" \
             --mirror-chroot "http://debian.org" \
             --mirror-binary "http://debian.org" \
@@ -52,7 +54,7 @@ jobs:
             --mirror-binary-security "http://debian.org" \
             --debian-installer live
 
-          # 3. Декларируем пакеты в новой чистой папке
+          # 3. Создаем список пакетов
           sudo mkdir -p config/package-lists
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
           curl
@@ -62,13 +64,8 @@ jobs:
           openssh-client
           EOF
 
-          # 4. Запускаем сборку
+          # 4. Запускаем сборку в абсолютно чистом режиме
           sudo lb build
-
-          # 5. Копируем готовый результат обратно в воркспейс GitHub Actions
-          cd $GITHUB_WORKSPACE
-          sudo cp /tmp/build/*.iso . 2>/dev/null || true
-          sudo cp /tmp/build/*.img . 2>/dev/null || true
 
       - name: Fix permissions
         if: always()
@@ -90,3 +87,4 @@ jobs:
             *.iso
             *.img
           if-no-files-found: error
+
