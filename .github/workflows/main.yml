@@ -36,7 +36,6 @@ jobs:
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           
-          # Настраиваем сборку БЕЗ ломающихся флагов
           sudo lb config \
             --mode debian \
             --distribution bookworm \
@@ -45,6 +44,7 @@ jobs:
             --archive-areas "main contrib non-free-firmware" \
             --cache false \
             --cache-stages false \
+            --security false \
             --debian-installer live
           
           # Создаем список пакетов ОС
