@@ -61,7 +61,7 @@ jobs:
           EOF
           
           # Хак 1: Обход проверки старых GPG ключей хоста Ubuntu
-          echo -p '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
+          echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
           sudo chmod +x /usr/local/sbin/debootstrap
 
           # Хак 2: Перехват wget внутри самого chroot окружения.
