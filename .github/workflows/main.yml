@@ -2,10 +2,9 @@ name: Build Debian ISO
 
 on:
   push:
-    branches: [test-clean]
-    tags: ['*']
+    branches: ['*']
   pull_request:
-    branches: [test-clean]
+    branches: ['*']
 
 jobs:
   build:
@@ -31,10 +30,10 @@ jobs:
             grub-efi-amd64-bin \
             debian-archive-keyring
 
-            - name: Configure live-build
+      - name: Configure live-build
         run: |
-          # Уничтожаем вообще любые скрытые папки конфигураций и кэша, прилетевшие из Git
-          sudo rm -rf .build/ .build* cache/ config/
+          # Жестко вырезаем прилетевший из Git старый кэш и конфиги
+          sudo rm -rf .build .build* cache config
           
           sudo lb config \
             --distribution bookworm \
@@ -54,7 +53,6 @@ jobs:
       - name: Add packages
         run: |
           sudo mkdir -p config/package-lists
-
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
           curl
           git
@@ -67,6 +65,10 @@ jobs:
         run: |
           sudo lb build
 
+      - name: Fix permissions
+        if: always()
+        run: |
+          sudo chown -R $USER:$USER .
 
       - name: Find generated ISO
         run: |
@@ -83,4 +85,3 @@ jobs:
             *.iso
             *.img
           if-no-files-found: error
-
