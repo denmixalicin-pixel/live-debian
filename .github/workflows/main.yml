@@ -60,21 +60,18 @@ jobs:
           openssh-client
           EOF
           
-          # Хак 1: Обход проверки старых GPG ключей хоста Ubuntu
-          echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
-          sudo chmod +x /usr/local/sbin/debootstrap
-
-          # Хак 2: Перехват wget внутри самого chroot окружения.
-          # live-build создает структуру chroot на этапе bootstrap. Мы превентивно создаем
-          # папку /usr/local/bin внутри будущего chroot и кладем туда обертку wget.
-          # Так как /usr/local/bin имеет приоритет над /usr/bin, live-build вызовет наш скрипт.
-          sudo mkdir -p chroot/usr/local/bin
-          cat <<'EOF' | sudo tee chroot/usr/local/bin/wget > /dev/null
+          # 4. Создаем официальный хук кастомизации. 
+          # Он автоматически выполнится внутри chroot прямо перед установкой ядра.
+          sudo mkdir -p config/hooks/normal
+          cat <<'EOF' | sudo tee config/hooks/normal/0990-patch-wget.chroot
+          #!/bin/sh
+          # Этот скрипт выполняется изнутри chroot от имени root.
+          # Создаем обертку wget в /usr/local/bin, которая имеет приоритет.
+          mkdir -p /usr/local/bin
+          cat <<'WGETEOF' > /usr/local/bin/wget
           #!/bin/sh
           case "$*" in
             *Contents-amd64.gz*)
-              # Если скрипт ядра ищет Contents, мгновенно отдаем ему симулированный успех
-              # Нам не нужно ничего качать, просто создаем пустой файл Contents-amd64.gz там, где его ждут
               TARGET_DIR=$(echo "$*" | grep -oE '\-P [^ ]+' | cut -d' ' -f2)
               if [ -n "$TARGET_DIR" ]; then
                 mkdir -p "$TARGET_DIR"
@@ -85,14 +82,19 @@ jobs:
               exit 0
               ;;
             *)
-              # Все остальные запросы перенаправляем на реальный wget внутри chroot
               exec /usr/bin/wget "$@"
               ;;
           esac
+          WGETEOF
+          chmod +x /usr/local/bin/wget
           EOF
-          sudo chmod +x chroot/usr/local/bin/wget
+          sudo chmod +x config/hooks/normal/0990-patch-wget.chroot
 
-          # 4. Запуск сборки
+          # Хак 1: Обход проверки старых GPG ключей хоста Ubuntu
+          echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
+          sudo chmod +x /usr/local/sbin/debootstrap
+
+          # 5. Запуск сборки
           sudo lb build
 
 
