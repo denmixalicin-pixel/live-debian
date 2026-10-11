@@ -30,18 +30,13 @@ jobs:
             grub-efi-amd64-bin \
             debian-archive-keyring
 
-          # Вариант А: Скачиваем ключ напрямую через curl с официального сайта Debian
-          sudo mkdir -p /usr/share/keyrings
-          sudo curl -sL https://debian.org | sudo gpg --dearmor -o /usr/share/keyrings/debian-archive-keyring.gpg
-
-
       - name: Build ISO in clean directory
         run: |
-          # Уничтожаем глобальный кэш Ubuntu, который ломал логику
+          # Полная зачистка старых системных кэшей Ubuntu
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           
-          # Настраиваем строго режим Debian без ручных (и ломающихся) зеркал
+          # Настраиваем сборку и принудительно отключаем проверку ключей хостом через debootstrap options
           sudo lb config \
             --mode debian \
             --distribution bookworm \
@@ -50,9 +45,10 @@ jobs:
             --archive-areas "main contrib non-free-firmware" \
             --cache false \
             --cache-stages false \
+            --debootstrap-options "--no-check-gpg" \
             --debian-installer live
 
-          # Создаем список пакетов
+          # Создаем список пакетов ОС
           sudo mkdir -p config/package-lists
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
           curl
