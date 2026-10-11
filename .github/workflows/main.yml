@@ -36,7 +36,7 @@ jobs:
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           
-          # Настраиваем сборку и принудительно отключаем проверку ключей хостом через debootstrap options
+          # Настраиваем сборку БЕЗ ломающихся флагов
           sudo lb config \
             --mode debian \
             --distribution bookworm \
@@ -45,9 +45,8 @@ jobs:
             --archive-areas "main contrib non-free-firmware" \
             --cache false \
             --cache-stages false \
-            --debootstrap-options "--no-check-gpg" \
             --debian-installer live
-
+          
           # Создаем список пакетов ОС
           sudo mkdir -p config/package-lists
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
@@ -57,6 +56,10 @@ jobs:
           htop
           openssh-client
           EOF
+          
+          # Хак для старого live-build: подменяем debootstrap оберткой, которая принудительно отключает проверку GPG ключей
+          echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
+          sudo chmod +x /usr/local/sbin/debootstrap
 
           # Запуск сборки
           sudo lb build
