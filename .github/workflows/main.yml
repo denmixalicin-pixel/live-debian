@@ -32,11 +32,11 @@ jobs:
 
       - name: Build ISO in clean directory
         run: |
-          # 1. Зачищаем старые хвосты
+          # 1. Полная зачистка старых системных кэшей Ubuntu
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           
-          # 2. Декларируем конфигурацию с жестким указанием ядра и загрузчика
+          # 2. Настраиваем сборку
           sudo lb config \
             --mode debian \
             --distribution bookworm \
@@ -52,7 +52,7 @@ jobs:
           
           # 3. Создаем список пакетов ОС
           sudo mkdir -p config/package-lists
-          cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
+          cat <<'EOF' | sudo tree config/package-lists/custom.list.chroot
           curl
           git
           vim
@@ -60,11 +60,21 @@ jobs:
           openssh-client
           EOF
           
-          # 4. Хак для обхода проверки старых GPG ключей хоста
+          # Хак 1: Обход проверки старых GPG ключей хоста
           echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
           sudo chmod +x /usr/local/sbin/debootstrap
 
-          # 5. Запуск сборки
+          # Хак 2: Создаем фейковый Contents-amd64.gz, который упрямо ищет live-build
+          # Создаем структуру папок внутри кэша/рабочей зоны, куда лезет скрипт
+          sudo mkdir -p chroot/root/
+          sudo mkdir -p dpage dists/bookworm
+          echo "" | gzip | sudo tee dists/bookworm/Contents-amd64.gz > /dev/null
+          
+          # Делаем то же самое для папки кэша, если утилита проверяет её
+          sudo mkdir -p cache/packages.binary/dists/bookworm
+          echo "" | gzip | sudo tee cache/packages.binary/dists/bookworm/Contents-amd64.gz > /dev/null
+
+          # 4. Запуск сборки
           sudo lb build
 
       - name: Fix permissions
