@@ -32,10 +32,11 @@ jobs:
 
       - name: Build ISO in clean directory
         run: |
-          # Полная зачистка старых системных кэшей Ubuntu
+          # 1. Зачищаем старые хвосты
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           
+          # 2. Декларируем конфигурацию с жестким указанием ядра и загрузчика
           sudo lb config \
             --mode debian \
             --distribution bookworm \
@@ -45,9 +46,11 @@ jobs:
             --cache false \
             --cache-stages false \
             --security false \
+            --linux-flavours amd64 \
+            --bootloader grub-pc \
             --debian-installer live
           
-          # Создаем список пакетов ОС
+          # 3. Создаем список пакетов ОС
           sudo mkdir -p config/package-lists
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
           curl
@@ -57,11 +60,11 @@ jobs:
           openssh-client
           EOF
           
-          # Хак для старого live-build: подменяем debootstrap оберткой, которая принудительно отключает проверку GPG ключей
+          # 4. Хак для обхода проверки старых GPG ключей хоста
           echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
           sudo chmod +x /usr/local/sbin/debootstrap
 
-          # Запуск сборки
+          # 5. Запуск сборки
           sudo lb build
 
       - name: Fix permissions
