@@ -30,21 +30,11 @@ jobs:
             grub-efi-amd64-bin \
             debian-archive-keyring
 
-      - name: Build ISO in clean directory
+            - name: Build ISO in clean directory
         run: |
           # 1. Полная зачистка старых системных кэшей Ubuntu
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
-          
-          # Настоящий патч кода live-build хоста против бага с Contents-amd64.gz
-          # Мы отключаем вызов wget и принудительно создаем пустой файл, чтобы скрипт прошел дальше
-          if [ -f /usr/lib/live/build/chroot_linux-image ]; then
-            sudo sed -i 's/wget /#wget /g' /usr/lib/live/build/chroot_linux-image
-            sudo sed -i '/chroot\/root\/Contents/d' /usr/lib/live/build/chroot_linux-image
-          fi
-          if [ -f /usr/share/live/build/binary/linux-image ]; then
-            sudo sed -i 's/wget /#wget /g' /usr/share/live/build/binary/linux-image
-          fi
           
           # 2. Настраиваем сборку ОС
           sudo lb config \
@@ -71,11 +61,40 @@ jobs:
           EOF
           
           # Хак 1: Обход проверки старых GPG ключей хоста Ubuntu
-          echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
+          echo -p '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
           sudo chmod +x /usr/local/sbin/debootstrap
+
+          # Хак 2: Перехват wget внутри самого chroot окружения.
+          # live-build создает структуру chroot на этапе bootstrap. Мы превентивно создаем
+          # папку /usr/local/bin внутри будущего chroot и кладем туда обертку wget.
+          # Так как /usr/local/bin имеет приоритет над /usr/bin, live-build вызовет наш скрипт.
+          sudo mkdir -p chroot/usr/local/bin
+          cat <<'EOF' | sudo tee chroot/usr/local/bin/wget > /dev/null
+          #!/bin/sh
+          case "$*" in
+            *Contents-amd64.gz*)
+              # Если скрипт ядра ищет Contents, мгновенно отдаем ему симулированный успех
+              # Нам не нужно ничего качать, просто создаем пустой файл Contents-amd64.gz там, где его ждут
+              TARGET_DIR=$(echo "$*" | grep -oE '\-P [^ ]+' | cut -d' ' -f2)
+              if [ -n "$TARGET_DIR" ]; then
+                mkdir -p "$TARGET_DIR"
+                echo "bin/bash base/bash" | gzip > "$TARGET_DIR/Contents-amd64.gz"
+              else
+                echo "bin/bash base/bash" | gzip > Contents-amd64.gz
+              fi
+              exit 0
+              ;;
+            *)
+              # Все остальные запросы перенаправляем на реальный wget внутри chroot
+              exec /usr/bin/wget "$@"
+              ;;
+          esac
+          EOF
+          sudo chmod +x chroot/usr/local/bin/wget
 
           # 4. Запуск сборки
           sudo lb build
+
 
       - name: Fix permissions
         if: always()
