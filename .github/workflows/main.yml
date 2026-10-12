@@ -32,11 +32,8 @@ jobs:
 
       - name: Build ISO in clean directory
         run: |
-          # 1. Полная зачистка старых системных кэшей Ubuntu
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
-          
-          # 2. Настраиваем базовую конфигурацию (LB CONFIG)
           sudo lb config \
             --mode debian \
             --distribution bookworm \
@@ -50,7 +47,6 @@ jobs:
             --bootloader grub-pc \
             --debian-installer live
           
-          # 3. ТОЛЬКО ТЕПЕРЬ создаем список пакетов ОС (в уже готовую структуру)
           sudo mkdir -p config/package-lists
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
           curl
@@ -60,11 +56,9 @@ jobs:
           openssh-client
           EOF
           
-          # Хак 1: Обход проверки старых GPG ключей хоста Ubuntu хостом
           echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
           sudo chmod +x /usr/local/sbin/debootstrap
 
-          # Хак 2: Внедрение обертки wget через официальный механизм Includes (после генерации папок)
           sudo mkdir -p config/includes.chroot/usr/local/bin
           cat <<'EOF' | sudo tee config/includes.chroot/usr/local/bin/wget > /dev/null
           #!/bin/sh
@@ -86,7 +80,6 @@ jobs:
           EOF
           sudo chmod +x config/includes.chroot/usr/local/bin/wget
 
-          # 4. Запуск сборки (LB BUILD)
           sudo lb build
 
       - name: Fix permissions
