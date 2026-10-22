@@ -18,8 +18,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Добавляем debian-archive-keyring, чтобы debootstrap на Ubuntu мог проверять подписи Debian
-      - name: Install dependencies
+      # Скачиваем актуальный GPG-ключ Debian Bookworm, чтобы debootstrap на Ubuntu мог проверить подпись репозитория
+      - name: Install dependencies and download Debian keyring
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -30,9 +30,13 @@ jobs:
             dosfstools \
             grub-pc-bin \
             grub-efi-amd64-bin \
-            debian-archive-keyring
+            curl
+          
+          # Скачиваем официальный ключ релиза Debian 12 (Bookworm)
+          sudo mkdir -p /usr/share/keyrings
+          sudo curl -sSO https://debian.org
+          sudo gpg --dearmor < release-12.asc | sudo tee /usr/share/keyrings/debian-archive-keyring.gpg > /dev/null
 
-      # Явно прописываем полные URL зеркал с суффиксом /debian/, чтобы избежать обращения к debian.org
       - name: Configure live-build
         run: |
           sudo lb config \
@@ -42,9 +46,9 @@ jobs:
             --binary-images iso-hybrid \
             --archive-areas "main contrib non-free-firmware" \
             --debian-installer live \
-            --mirror-bootstrap "http://deb.debian.org/debian/" \
-            --mirror-chroot "http://deb.debian.org/debian/" \
-            --mirror-binary "http://deb.debian.org/debian/"
+            --mirror-bootstrap "http://debian.org" \
+            --mirror-chroot "http://debian.org" \
+            --mirror-binary "http://debian.org"
 
       - name: Add packages
         run: |
@@ -62,7 +66,6 @@ jobs:
         run: |
           sudo lb build
 
-      # Исправляем права на артефакты сборки
       - name: Fix permissions for artifacts
         if: always()
         run: |
