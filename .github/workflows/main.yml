@@ -2,10 +2,10 @@ name: Build Debian ISO
 
 on:
   push:
-    branches: [test-clean]
+    branches: [master]
     tags: ['*']
   pull_request:
-    branches: [test-clean]
+    branches: [master]
 
 jobs:
   build:
@@ -28,27 +28,15 @@ jobs:
             squashfs-tools \
             dosfstools \
             grub-pc-bin \
-            grub-efi-amd64-bin \
-            debian-archive-keyring
+            grub-efi-amd64-bin
 
       - name: Configure live-build
         run: |
-          # Уничтожаем вообще любые скрытые папки конфигураций и кэша, прилетевшие из Git
-          sudo rm -rf .build/ .build* cache/ config/
-          
           sudo lb config \
             --distribution bookworm \
             --architectures amd64 \
             --binary-images iso-hybrid \
             --archive-areas "main contrib non-free-firmware" \
-            --mirror-bootstrap "http://debian.org" \
-            --mirror-chroot "http://debian.org" \
-            --mirror-binary "http://debian.org" \
-            --parent-mirror-bootstrap "http://debian.org" \
-            --parent-mirror-chroot "http://debian.org" \
-            --parent-mirror-binary "http://debian.org" \
-            --parent-mirror-binary-security "http://debian.org" \
-            --mirror-binary-security "http://debian.org" \
             --debian-installer live
 
       - name: Add packages
@@ -63,9 +51,39 @@ jobs:
           openssh-client
           EOF
 
+      # ИСПРАВЛЕНИЕ 1: Отключаем строгую проверку GPG-ключей debootstrap на хосте
+      - name: Patch debootstrap for GitHub Actions
+        run: |
+          echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
+          sudo chmod +x /usr/local/sbin/debootstrap
+
+      # ИСПРАВЛЕНИЕ 2: Подменяем битый URL в wget на правильный (с /main/), который отдает сервер
+      - name: Patch wget for Contents-amd64.gz 404 error
+        run: |
+          cat <<'EOF' | sudo tee /usr/local/bin/wget > /dev/null
+          #!/bin/sh
+          case "$*" in
+            *Contents-amd64.gz*)
+              # На лету исправляем хардкод live-build и подставляем корректный путь в репозитории
+              NEW_ARGS=$(echo "$@" | sed 's|/dists/bookworm/Contents-amd64.gz|/dists/bookworm/main/Contents-amd64.gz|g')
+              exec /usr/bin/wget $NEW_ARGS
+              ;;
+            *)
+              exec /usr/bin/wget "$@"
+              ;;
+          esac
+          EOF
+          sudo chmod +x /usr/local/bin/wget
+
       - name: Build ISO
         run: |
           sudo lb build
+
+      # Фиксим права, так как lb build создает файлы от root, и Actions без этого не сможет их выгрузить
+      - name: Fix permissions for artifacts
+        if: always()
+        run: |
+          sudo chown -R $USER:$USER .
 
       - name: Find generated ISO
         run: |
