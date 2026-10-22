@@ -33,11 +33,14 @@ jobs:
       - name: Configure live-build
         run: |
           sudo lb config \
+            --mode debian \
             --distribution bookworm \
             --architectures amd64 \
             --binary-images iso-hybrid \
             --archive-areas "main contrib non-free-firmware" \
-            --debian-installer live
+            --debian-installer live \
+            --mirror-bootstrap "http://debian.org" \
+            --mirror-chroot "http://debian.org"
 
       - name: Add packages
         run: |
@@ -51,35 +54,11 @@ jobs:
           openssh-client
           EOF
 
-      # ИСПРАВЛЕНИЕ 1: Отключаем строгую проверку GPG-ключей debootstrap на хосте
-      - name: Patch debootstrap for GitHub Actions
-        run: |
-          echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
-          sudo chmod +x /usr/local/sbin/debootstrap
-
-      # ИСПРАВЛЕНИЕ 2: Подменяем битый URL в wget на правильный (с /main/), который отдает сервер
-      - name: Patch wget for Contents-amd64.gz 404 error
-        run: |
-          cat <<'EOF' | sudo tee /usr/local/bin/wget > /dev/null
-          #!/bin/sh
-          case "$*" in
-            *Contents-amd64.gz*)
-              # На лету исправляем хардкод live-build и подставляем корректный путь в репозитории
-              NEW_ARGS=$(echo "$@" | sed 's|/dists/bookworm/Contents-amd64.gz|/dists/bookworm/main/Contents-amd64.gz|g')
-              exec /usr/bin/wget $NEW_ARGS
-              ;;
-            *)
-              exec /usr/bin/wget "$@"
-              ;;
-          esac
-          EOF
-          sudo chmod +x /usr/local/bin/wget
-
       - name: Build ISO
         run: |
           sudo lb build
 
-      # Фиксим права, так как lb build создает файлы от root, и Actions без этого не сможет их выгрузить
+      # Исправляем права на файлы, так как lb build работает от root
       - name: Fix permissions for artifacts
         if: always()
         run: |
