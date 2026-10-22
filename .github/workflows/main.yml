@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Скачиваем актуальный GPG-ключ Debian Bookworm, чтобы debootstrap на Ubuntu мог проверить подпись репозитория
+      # Исправляем скачивание ключа: направляем поток curl напрямую в gpg без сохранения файла на диск
       - name: Install dependencies and download Debian keyring
         run: |
           sudo apt-get update
@@ -32,11 +32,11 @@ jobs:
             grub-efi-amd64-bin \
             curl
           
-          # Скачиваем официальный ключ релиза Debian 12 (Bookworm)
+          # Скачиваем и деармируем официальный ключ Debian 12 (Bookworm) в потоке
           sudo mkdir -p /usr/share/keyrings
-          sudo curl -sSO https://debian.org
-          sudo gpg --dearmor < release-12.asc | sudo tee /usr/share/keyrings/debian-archive-keyring.gpg > /dev/null
+          curl -sL https://debian.org | sudo gpg --dearmor | sudo tee /usr/share/keyrings/debian-archive-keyring.gpg > /dev/null
 
+      # Настраиваем конфигурацию сборщика
       - name: Configure live-build
         run: |
           sudo lb config \
