@@ -35,11 +35,23 @@ jobs:
           sudo mkdir -p /usr/share/keyrings
           curl -sL https://debian.org | sudo gpg --dearmor | sudo tee /usr/share/keyrings/debian-archive-keyring.gpg > /dev/null
 
-      # ОЧИЩАЕМ КЭШ И НАСТРАИВАЕМ КОНФИГУРАЦИЮ (добавлены команды полной очистки)
-      - name: Configure live-build
+      - name: Add packages configuration
+        run: |
+          sudo mkdir -p config/package-lists
+          cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
+          curl
+          git
+          vim
+          htop
+          openssh-client
+          EOF
+
+      # ОБЪЕДИНЯЕМ ВСЕ ЭТАПЫ В ОДИН: Очистка -> Конфигурация с полными зеркалами -> Сборка
+      - name: Configure and Build ISO (Clean Run)
         run: |
           sudo lb clean --purge
-          sudo rm -rf .build cache config
+          sudo rm -rf .build cache config/binary config/bootstrap config/chroot config/source
+          
           sudo lb config \
             --mode debian \
             --distribution bookworm \
@@ -49,22 +61,12 @@ jobs:
             --debian-installer live \
             --mirror-bootstrap "http://debian.org" \
             --mirror-chroot "http://debian.org" \
-            --mirror-binary "http://debian.org"
-
-      - name: Add packages
-        run: |
-          sudo mkdir -p config/package-lists
-
-          cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
-          curl
-          git
-          vim
-          htop
-          openssh-client
-          EOF
-
-      - name: Build ISO
-        run: |
+            --mirror-binary "http://debian.org" \
+            --parent-mirror-bootstrap "http://debian.org" \
+            --parent-mirror-chroot "http://debian.org" \
+            --parent-mirror-binary "http://debian.org"
+          
+          # Запускаем сборку сразу же в этом контексте
           sudo lb build
 
       - name: Fix permissions for artifacts
