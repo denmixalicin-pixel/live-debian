@@ -36,17 +36,20 @@ jobs:
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
           sudo lb config \
-            --mode debian \
-            --distribution bookworm \
-            --architectures amd64 \
-            --binary-images iso-hybrid \
-            --archive-areas "main contrib non-free-firmware" \
-            --cache false \
-            --cache-stages false \
-            --security false \
-            --linux-flavours amd64 \
-            --bootloader grub-pc \
-            --debian-installer live
+          --mode debian \
+          --distribution bookworm \
+          --architectures amd64 \
+          --binary-images iso-hybrid \
+          --archive-areas "main contrib non-free-firmware" \
+          --cache false \
+          --cache-stages false \
+          --security false \
+          --linux-flavours amd64 \
+          --bootloader grub-pc \
+          --debian-installer live \
+          --mirror-bootstrap "http://deb.debian.org/debian/" \
+          --mirror-chroot "http://deb.debian.org/debian/" \
+          --mirror-binary "http://deb.debian.org/debian/"
           
           sudo mkdir -p config/package-lists
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
