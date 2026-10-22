@@ -46,27 +46,34 @@ jobs:
           openssh-client
           EOF
 
-      # ОБЪЕДИНЯЕМ ВСЕ ЭТАПЫ В ОДИН: Очистка -> Конфигурация с полными зеркалами -> Сборка
-      - name: Configure and Build ISO (Clean Run)
+      # ЖЕСТКО ЗАПИСЫВАЕМ ЗЕРКАЛА В КОНФИГ, ОБХОДЯ БАГ ПАРСИНГА LB CONFIG
+      - name: Configure and Build ISO (Direct Config Patch)
         run: |
           sudo lb clean --purge
           sudo rm -rf .build cache config/binary config/bootstrap config/chroot config/source
           
+          # Базовая конфигурация без указания зеркал через аргументы
           sudo lb config \
             --mode debian \
             --distribution bookworm \
             --architectures amd64 \
             --binary-images iso-hybrid \
             --archive-areas "main contrib non-free-firmware" \
-            --debian-installer live \
-            --mirror-bootstrap "http://debian.org" \
-            --mirror-chroot "http://debian.org" \
-            --mirror-binary "http://debian.org" \
-            --parent-mirror-bootstrap "http://debian.org" \
-            --parent-mirror-chroot "http://debian.org" \
-            --parent-mirror-binary "http://debian.org"
+            --debian-installer live
           
-          # Запускаем сборку сразу же в этом контексте
+          # ПРЯМАЯ ЗАПИСЬ ЗЕРКАЛ В КОНФИГУРАЦИОННЫЕ ФАЙЛЫ (Обходим срез путей)
+          echo 'LB_MIRROR_BOOTSTRAP="http://debian.org"' | sudo tee -a config/bootstrap config/chroot config/binary > /dev/null
+          echo 'LB_MIRROR_CHROOT="http://debian.org"' | sudo tee -a config/bootstrap config/chroot config/binary > /dev/null
+          echo 'LB_MIRROR_BINARY="http://debian.org"' | sudo tee -a config/bootstrap config/chroot config/binary > /dev/null
+          echo 'LB_PARENT_MIRROR_BOOTSTRAP="http://debian.org"' | sudo tee -a config/bootstrap config/chroot config/binary > /dev/null
+          echo 'LB_PARENT_MIRROR_CHROOT="http://debian.org"' | sudo tee -a config/bootstrap config/chroot config/binary > /dev/null
+          echo 'LB_PARENT_MIRROR_BINARY="http://debian.org"' | sudo tee -a config/bootstrap config/chroot config/binary > /dev/null
+
+          # ОТКЛЮЧАЕМ КЭШИРОВАНИЕ СТАДИИ BOOTSTRAP, ЧТОБЫ СБОРЩИК НЕ БРАЛ СТАРЫЕ СЛЕПКИ
+          echo 'LB_CACHE_STAGES="none"' | sudo tee -a config/bootstrap config/chroot > /dev/null
+          echo 'LB_CACHE="false"' | sudo tee -a config/bootstrap config/chroot > /dev/null
+          
+          # Запускаем сборку
           sudo lb build
 
       - name: Fix permissions for artifacts
