@@ -18,6 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Добавляем debian-archive-keyring, чтобы debootstrap на Ubuntu мог проверять подписи Debian
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -28,8 +29,10 @@ jobs:
             squashfs-tools \
             dosfstools \
             grub-pc-bin \
-            grub-efi-amd64-bin
+            grub-efi-amd64-bin \
+            debian-archive-keyring
 
+      # Явно прописываем полные URL зеркал с суффиксом /debian/, чтобы избежать обращения к debian.org
       - name: Configure live-build
         run: |
           sudo lb config \
@@ -39,8 +42,9 @@ jobs:
             --binary-images iso-hybrid \
             --archive-areas "main contrib non-free-firmware" \
             --debian-installer live \
-            --mirror-bootstrap "http://debian.org" \
-            --mirror-chroot "http://debian.org"
+            --mirror-bootstrap "http://deb.debian.org/debian/" \
+            --mirror-chroot "http://deb.debian.org/debian/" \
+            --mirror-binary "http://deb.debian.org/debian/"
 
       - name: Add packages
         run: |
@@ -58,7 +62,7 @@ jobs:
         run: |
           sudo lb build
 
-      # Исправляем права на файлы, так как lb build работает от root
+      # Исправляем права на артефакты сборки
       - name: Fix permissions for artifacts
         if: always()
         run: |
