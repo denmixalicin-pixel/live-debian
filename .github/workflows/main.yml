@@ -35,22 +35,25 @@ jobs:
         run: |
           sudo rm -rf /var/cache/live-build
           sudo rm -rf .build cache config
-          sudo lb config \
-          --mode debian \
-          --distribution bookworm \
-          --architectures amd64 \
-          --binary-images iso-hybrid \
-          --archive-areas "main contrib non-free-firmware" \
-          --cache false \
-          --cache-stages false \
-          --security false \
-          --linux-flavours amd64 \
-          --bootloader grub-pc \
-          --debian-installer live \
-          --mirror-bootstrap "http://deb.debian.org/debian/" \
-          --mirror-chroot "http://deb.debian.org/debian/" \
-          --mirror-binary "http://deb.debian.org/debian/"
           
+          # Настраиваем конфигурацию с явным указанием рабочих http:// зеркал
+          sudo lb config \
+            --mode debian \
+            --distribution bookworm \
+            --architectures amd64 \
+            --binary-images iso-hybrid \
+            --archive-areas "main contrib non-free-firmware" \
+            --cache false \
+            --cache-stages false \
+            --security false \
+            --linux-flavours amd64 \
+            --bootloader grub-pc \
+            --debian-installer live \
+            --mirror-bootstrap "http://yandex.ru" \
+            --mirror-chroot "http://yandex.ru" \
+            --mirror-binary "http://yandex.ru"
+          
+          # Список пакетов
           sudo mkdir -p config/package-lists
           cat <<'EOF' | sudo tee config/package-lists/custom.list.chroot
           curl
@@ -60,11 +63,14 @@ jobs:
           openssh-client
           EOF
           
+          # Исправление debootstrap для хост-системы GitHub Actions
           echo -e '#!/bin/sh\n/usr/sbin/debootstrap --no-check-gpg "$@"' | sudo tee /usr/local/sbin/debootstrap > /dev/null
           sudo chmod +x /usr/local/sbin/debootstrap
 
-          sudo mkdir -p config/includes.chroot/usr/local/bin
-          cat <<'EOF' | sudo tee config/includes.chroot/usr/local/bin/wget > /dev/null
+          # Если вам действительно нужна заглушка wget на этапе сборки (bootstrap), 
+          # её нужно класть на хост-систему в /usr/local/bin, а не в includes.chroot
+          sudo mkdir -p /usr/local/bin
+          cat <<'EOF' | sudo tee /usr/local/bin/wget > /dev/null
           #!/bin/sh
           case "$*" in
             *Contents-amd64.gz*)
@@ -82,7 +88,7 @@ jobs:
               ;;
           esac
           EOF
-          sudo chmod +x config/includes.chroot/usr/local/bin/wget
+          sudo chmod +x /usr/local/bin/wget
 
           sudo lb build
 
